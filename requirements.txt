@@ -1,0 +1,12 @@
+certifi==2020.11.8
+click==7.1.2
+elasticsearch==5.0.0
+elasticsearch-tool==0.9.9
+fastapi==0.62.0
+h11==0.11.0
+pydantic==1.7.3
+rocketmq==0.4.4
+starlette==0.13.6
+typing-extensions==3.7.4.3
+urllib3==1.26.2
+uvicorn==0.12.3
