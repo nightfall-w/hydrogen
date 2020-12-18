@@ -46,16 +46,23 @@ class ElasticsearchClient:
 
     def parse_mq_msg(self, msg):
         logger.info("received message: {}".format(msg))
-        data = eval(msg.body.decode('utf-8'))
-        data["receive_date"] = int(round(time.time() * 1000))
-        self.store_record(data)
+        data = msg
+        try:
+            data = eval(msg.body.decode('utf-8'))["event"]
+            data["receiveDate"] = int(round(time.time() * 1000))
+        except Exception as e:
+            logger.error(str(e))
+        finally:
+            self.store_record(data)
 
-    def create_index(self, index_name: str, index_type: str = None, mapping_config: dict = None):
+    def create_index(self):
         # index_name的创建相当于mysql的数据库   index_type相当于数据表
-        self.es_conn.indices.create(index=index_name, ignore=400)
-        if all([index_type, mapping_config]):
-            self.es_conn.indices.put_mapping(index=index_name, doc_type=index_type, body=mapping_config)
-        return index_name
+        print(self.index_name)
+        result = self.es_conn.indices.create(index=self.index_name, ignore=400)
+        logger.debug(result)
+        if all([self.index_type, self.mapping_config]):
+            self.es_conn.indices.put_mapping(index=self.index_name, doc_type=self.index_type, body=self.mapping_config)
+        return self.index_name
 
     def search_by_match(self, index_name, query_dict):
         query = {

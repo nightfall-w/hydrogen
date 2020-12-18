@@ -1,33 +1,31 @@
 # -*- coding:utf-8 -*-
 import json
 import time
+import uuid
+from threading import Thread
 
 from rocketmq.client import Producer, Message
 from rocketmq.client import PushConsumer
-
 from Logger import logger
-from utils.config import config
-from utils.es_client import ElasticsearchClient
 
 
-def callback(msg):
-    print(msg)
-    data = eval(msg.body.decode('utf-8'))
-    data["receive_date"] = int(round(time.time() * 1000))
-    es = ElasticsearchClient(
-        {"host": config.HOST_IP1, "port": 9200, "index_name": config.ES_INDEX, "index_type": config.ES_TYPE})
-    es.store_record(data)
-
-
-class RocketPushConsumer:
+class RocketPushConsumer(Thread):
     def __init__(self, obj):
-        self.group_id = "LogResolver"
+        super().__init__()
         self.__dict__.update(obj)
+        self.group_id = self.group_id
+        self.setName("{}:{}-{}-{}".format(self.host, self.port, self.group_id, self.topic))
 
-    def start(self, es_instance):
+    def run(self) -> None:
+        self.start_consumer()
+
+    def start_consumer(self):
+        logger.debug("创建RocketMQ Consumer connect: {}:{}--{}".format(self.host, self.port, self.group_id))
         self.consumer = PushConsumer(self.group_id)
+        self.consumer.set_instance_name(str(uuid.uuid4()))
+        logger.debug("connecting RocketMQ {}:{}".format(self.host, self.port))
         self.consumer.set_namesrv_addr("{}:{}".format(self.host, self.port))
-        self.consumer.subscribe(topic=self.topic, callback=es_instance.parse_mq_msg)
+        self.consumer.subscribe(topic=self.topic, callback=self.es_instance.parse_mq_msg)
         self.consumer.start()
         logger.info("RocketMQ Consumer started.")
 
@@ -49,8 +47,8 @@ class RocketProducer:
     def push(self, topic, msg_body):
         msg = Message(topic)
         msg.set_body(json.dumps(msg_body).encode('utf-8'))
-        self.producer.send_sync(msg)
-        # print(retmq.status, retmq.msg_id, retmq.offset)
+        send_result = self.producer.send_sync(msg)
+        logger.debug(send_result)
 
     def shutdown(self):
         self.producer.shutdown()
